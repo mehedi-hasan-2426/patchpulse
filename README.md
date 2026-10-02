@@ -79,38 +79,76 @@ age.
 Add `--html report.html` to also write the report as a standalone HTML file, for example to
 attach to a ticket.
 
-## Configuration
+## Using your own data
 
-| Variable | Default | Allowed |
-|---|---|---|
-| `PATCHPULSE_FIXTURE_PATH` | `fixtures/fleet.json` | Path to a fleet JSON file |
-| `PATCHPULSE_MAX_CRITICAL_MISSING` | `0` | 0 to 100 |
-| `PATCHPULSE_MAX_SECURITY_MISSING` | `0` | 0 to 100 |
-| `PATCHPULSE_MAX_SCAN_AGE_DAYS` | `7` | 1 to 90 |
+PatchPulse reads a JSON file with one record per instance. Point it at your own file with
+`PATCHPULSE_FIXTURE_PATH`:
 
-Invalid values stop the run with a clear message instead of falling back silently.
-
-## Design
-
-```text
-src/patchpulse/
-  models.py    instance data, compliance states, findings
-  policy.py    thresholds and the rules that turn data into findings
-  sources.py   where data comes from, plus strict validation of fleet input
-  report.py    report building and alert text
-  page.py      static HTML page for the report
-  settings.py  environment configuration with bounds
-  handler.py   Lambda entry point
-  __main__.py  command line entry point
+```sh
+PATCHPULSE_FIXTURE_PATH=/path/to/fleet.json patchpulse
 ```
 
-Data sources share one small interface, `ComplianceSource`. The demo source reads a JSON
-file. The SSM source planned for milestone 5 will implement the same interface, so the policy,
-report and alert code will not change when real data is added.
+In PowerShell, set `$env:PATCHPULSE_FIXTURE_PATH = "C:\path\to\fleet.json"` first.
 
-Fleet data is treated as untrusted input. Instance IDs, names, counts and timestamps are
-validated, timestamps must include a time zone, duplicates are rejected, and the instance count
-is capped.
+The file must contain an `instances` list:
+
+```json
+{
+  "instances": [
+    {
+      "instance_id": "i-0123456789abcdef0",
+      "name": "web-01",
+      "critical_missing": 0,
+      "security_missing": 1,
+      "other_missing": 4,
+      "last_scan_at": "2026-09-30T02:15:00+00:00"
+    }
+  ]
+}
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `instance_id` | string | `i-` followed by 8 or 17 lowercase hexadecimal characters |
+| `name` | string | 1 to 128 characters after trimming spaces |
+| `critical_missing` | integer | 0 or more |
+| `security_missing` | integer | 0 or more |
+| `other_missing` | integer | 0 or more, reported but not used by the policy |
+| `last_scan_at` | string | ISO 8601 timestamp with a time zone, for example `+00:00` |
+
+The input is validated before anything is evaluated. A file is rejected if it is not valid
+JSON, if a record breaks a rule above, if an instance ID appears twice, or if it lists more than
+10,000 instances. The error message names the record and the field.
+
+## Configuration
+
+Policy limits come from environment variables:
+
+| Variable | Default | Allowed | Meaning |
+|---|---|---|---|
+| `PATCHPULSE_FIXTURE_PATH` | `fixtures/fleet.json` | any path | Fleet file to read |
+| `PATCHPULSE_MAX_CRITICAL_MISSING` | `0` | 0 to 100 | Critical patches allowed before an instance is non-compliant |
+| `PATCHPULSE_MAX_SECURITY_MISSING` | `0` | 0 to 100 | Security patches allowed before an instance is non-compliant |
+| `PATCHPULSE_MAX_SCAN_AGE_DAYS` | `7` | 1 to 90 | Days since the last scan before an instance is stale |
+
+An invalid value stops the run with a message such as
+`PATCHPULSE_MAX_SCAN_AGE_DAYS must be between 1 and 90`. PatchPulse never falls back to a
+default when a value is set but wrong.
+
+Command line options:
+
+| Option | Meaning |
+|---|---|
+| `--as-of TIMESTAMP` | Evaluate at this time instead of now. Must include a time zone. |
+| `--html PATH` | Also write the report as an HTML file. Parent folders are created. |
+
+Exit codes make the CLI easy to use in scripts and CI jobs:
+
+| Code | Meaning |
+|---|---|
+| `0` | Every instance is compliant |
+| `1` | At least one instance is stale or non-compliant |
+| `2` | Invalid configuration, invalid data, or a file could not be read or written |
 
 ## Development
 
