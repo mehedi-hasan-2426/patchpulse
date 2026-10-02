@@ -1,49 +1,24 @@
 # PatchPulse
 
-Patch compliance reporting and alerting for a fleet of EC2 instances.
+Reports which EC2 instances are behind on security patches and produces an alert you can send
+to the people who own them.
 
-This is a learning project. It is modelled on patching work I do in an enterprise DevOps
-team, but it uses synthetic data only and contains nothing from my employer.
+[![CI](https://github.com/mehedi-hasan-2426/patchpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/mehedi-hasan-2426/patchpulse/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB)
+![Terraform 1.10+](https://img.shields.io/badge/terraform-1.10%2B-7B42BC)
 
-## Status
+## Overview
 
-Milestone 1 of 6 is done: the Python core runs locally against a synthetic fleet. There is
-no AWS infrastructure yet.
+Patch dashboards show what is missing, but they rarely tell you which machines have stopped
+reporting at all. PatchPulse checks every instance against a simple policy, flags instances
+whose last patch scan is too old to trust, and lists the problems in one short message. It
+runs from the command line or on a schedule in AWS Lambda.
 
-| Milestone | Scope | State |
-|---|---|---|
-| 1 | Python core, demo source, unit tests, CI | Done |
-| 2 | Terraform modules and a dev environment | Done (validated, not applied) |
-| 3 | GitHub OIDC deploy to dev, CloudWatch alarms, SNS alerts | Planned |
-| 4 | Prod environment behind a manual approval | Planned |
-| 5 | Real SSM Patch Manager source and an incident walkthrough | Planned |
-| 6 | Architecture diagram, costs and trade-offs | Planned |
-
-## What it does
-
-PatchPulse reads patch compliance data for each instance and sorts every instance into one of
-three states:
-
-| State | Meaning |
-|---|---|
-| `stale` | The last patch scan is older than the allowed age, so the data cannot be trusted |
-| `non_compliant` | More critical or security patches are missing than the policy allows |
-| `compliant` | Recent scan and within the policy limits |
-
-It then builds a report and, if anything needs attention, an alert message. Stale instances
-are listed first, because missing data hides problems.
-
-## Quick start
-
-Requires Python 3.12 or newer.
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -e ".[dev]"
-.\.venv\Scripts\patchpulse --as-of 2026-10-01T12:00:00+00:00
-```
+## Example
 
 ```text
+$ patchpulse --as-of 2026-10-01T12:00:00+00:00
 PatchPulse: 3 of 5 instances need attention (2026-10-01T12:00:00+00:00)
 
 - reporting-01 (i-0a1b2c3d4e5f6071b): stale, last patch scan 19 days ago
@@ -51,12 +26,58 @@ PatchPulse: 3 of 5 instances need attention (2026-10-01T12:00:00+00:00)
 - batch-01 (i-0a1b2c3d4e5f6071a): non_compliant, 4 security patches missing
 ```
 
-`--as-of` pins the evaluation time so the demo output stays the same as the fixture ages.
-The command exits with `0` when everything is compliant, `1` when something needs attention,
-and `2` on invalid configuration or data.
+This is the output for the synthetic fleet in `fixtures/fleet.json`.
+
+## How it works
+
+```mermaid
+flowchart LR
+    schedule[EventBridge schedule] --> lambda[Lambda handler]
+    cli[patchpulse CLI] --> source
+    lambda --> source[Compliance source]
+    source --> policy[Compliance policy]
+    policy --> report[Fleet report]
+    report --> alert[Alert text]
+    report --> html[HTML export]
+```
+
+A compliance source returns one record per instance. The policy turns each record into one
+of three states:
+
+| State | When |
+|---|---|
+| `stale` | The last patch scan is older than the allowed age. Stale instances are listed first, because missing data can hide missing patches. |
+| `non_compliant` | More critical or security patches are missing than the policy allows. |
+| `compliant` | The scan is recent and the missing patches are within the limits. |
+
+The report counts each state. If anything is stale or non-compliant, it also produces the
+alert text shown above. The Lambda handler returns the report and alert as JSON. The CLI
+prints the alert and can also write the report as an HTML file.
+
+## Quick start
+
+You need Python 3.12 or newer.
+
+```sh
+git clone https://github.com/mehedi-hasan-2426/patchpulse.git
+cd patchpulse
+python -m venv .venv
+```
+
+Activate the environment with `source .venv/bin/activate` on Linux and macOS, or
+`.venv\Scripts\Activate.ps1` in PowerShell on Windows. Then install and run:
+
+```sh
+pip install -e .
+patchpulse --as-of 2026-10-01T12:00:00+00:00
+```
+
+`--as-of` fixes the evaluation time, so the output matches the example above. Without it,
+PatchPulse uses the current time and the synthetic instances become stale as their scan dates
+age.
 
 Add `--html report.html` to also write the report as a standalone HTML file, for example to
-attach to a ticket or share with people who do not use the command line.
+attach to a ticket.
 
 ## Configuration
 
