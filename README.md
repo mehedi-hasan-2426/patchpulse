@@ -107,6 +107,15 @@ is capped.
 CI runs the same checks plus a gitleaks secret scan. Tests fail below 95% coverage. Actions
 are pinned to commit SHAs and Dependabot keeps them and the dev tools up to date.
 
+Build the Lambda deployment package with:
+
+```powershell
+.\.venv\Scripts\python -m tools.package_lambda
+```
+
+The archive is written to `dist/lambda.zip`. Entries are sorted and timestamps are fixed, so
+unchanged source always produces the same file hash.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
