@@ -98,7 +98,7 @@ def test_cli_writes_html_page(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
     assert exit_code == 1
     content = page.read_text(encoding="utf-8")
-    assert "Synthetic fleet of 5 instances" in content
+    assert "5 instances, evaluated as of" in content
     assert "reporting-01" in content
 
 

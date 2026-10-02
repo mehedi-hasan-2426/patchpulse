@@ -42,5 +42,5 @@ def test_page_escapes_instance_names(now: datetime) -> None:
 def test_page_for_empty_fleet(now: datetime) -> None:
     page = render_page(build_report([], CompliancePolicy(), now))
 
-    assert "Synthetic fleet of 0 instances" in page
+    assert "0 instances, evaluated as of" in page
     assert "<tbody></tbody>" in page
