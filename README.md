@@ -150,27 +150,6 @@ Exit codes make the CLI easy to use in scripts and CI jobs:
 | `1` | At least one instance is stale or non-compliant |
 | `2` | Invalid configuration, invalid data, or a file could not be read or written |
 
-## Development
-
-```powershell
-.\.venv\Scripts\ruff check .
-.\.venv\Scripts\ruff format --check .
-.\.venv\Scripts\mypy
-.\.venv\Scripts\pytest
-```
-
-CI runs the same checks plus a gitleaks secret scan. Tests fail below 95% coverage. Actions
-are pinned to commit SHAs and Dependabot keeps them and the dev tools up to date.
-
-Build the Lambda deployment package with:
-
-```powershell
-.\.venv\Scripts\python -m tools.package_lambda
-```
-
-The archive is written to `dist/lambda.zip`. Entries are sorted and timestamps are fixed, so
-unchanged source always produces the same file hash.
-
 ## Deploying to your AWS account
 
 The `infra/envs/dev` environment runs PatchPulse in Lambda once a day. It creates one Lambda
@@ -243,6 +222,91 @@ module "patch_report" {
 
 Always pin `ref` to a tag or commit. The [module README](infra/modules/lambda/README.md) lists
 every input and output.
+
+## Extending
+
+A data source is any class with a `fetch()` method that returns a list of
+`InstanceCompliance` records. The policy, report and alert code do not change when you add one.
+
+```python
+from datetime import UTC, datetime
+
+from patchpulse.handler import run
+from patchpulse.models import InstanceCompliance
+from patchpulse.report import format_alert
+from patchpulse.settings import load_settings
+
+
+class InventorySource:
+    def fetch(self) -> list[InstanceCompliance]:
+        return [
+            InstanceCompliance(
+                instance_id="i-0123456789abcdef0",
+                name="app-01",
+                critical_missing=1,
+                security_missing=0,
+                other_missing=2,
+                last_scan_at=datetime.now(UTC),
+            )
+        ]
+
+
+report = run(InventorySource(), load_settings({}), datetime.now(UTC))
+print(format_alert(report))
+```
+
+The package ships a `py.typed` marker, so mypy checks code like this against PatchPulse's
+types.
+
+```text
+src/patchpulse/
+  models.py     instance records, compliance states and findings
+  policy.py     rules that turn a record into a finding
+  sources.py    the ComplianceSource interface, the JSON source and input validation
+  report.py     report building and alert text
+  page.py       HTML export
+  settings.py   environment variables and their limits
+  handler.py    Lambda entry point
+  __main__.py   command line entry point
+tools/          Lambda packaging
+infra/          Terraform module and dev environment
+```
+
+## Development
+
+Install the development tools in an activated virtual environment:
+
+```sh
+pip install -e ".[dev]"
+```
+
+Run the same checks as CI:
+
+```sh
+ruff check .
+ruff format --check .
+mypy
+pytest
+```
+
+Tests fail below 95 percent coverage. CI also scans the Git history for secrets with gitleaks
+and runs `terraform fmt` and `terraform validate` without AWS credentials. Actions are pinned
+to commit SHAs, and Dependabot proposes updates weekly.
+
+`python -m tools.package_lambda` writes `dist/lambda.zip`. Entries are sorted and timestamps
+are fixed, so the same source always produces the same file hash and Terraform only updates
+the function when the code changes.
+
+## Status and limitations
+
+PatchPulse is a learning project. It reads compliance data from a JSON file only, and the
+bundled data is synthetic. The Terraform passes validation in CI, but I have not applied it to
+a running AWS account. The Lambda function returns its report and does not send alerts yet.
+
+Planned work is tracked in the
+[roadmap issues](https://github.com/mehedi-hasan-2426/patchpulse/issues?q=is%3Aissue+label%3Aroadmap):
+reading real data from SSM Patch Manager, alerts through CloudWatch and SNS, deployment from
+GitHub Actions with OIDC, and a prod environment.
 
 ## License
 
