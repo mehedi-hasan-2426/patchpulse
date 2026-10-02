@@ -1,0 +1,44 @@
+{
+  "instances": [
+    {
+      "instance_id": "i-0a1b2c3d4e5f60718",
+      "name": "web-01",
+      "critical_missing": 0,
+      "security_missing": 0,
+      "other_missing": 3,
+      "last_scan_at": "2026-09-30T02:15:00+00:00"
+    },
+    {
+      "instance_id": "i-0a1b2c3d4e5f60719",
+      "name": "web-02",
+      "critical_missing": 2,
+      "security_missing": 1,
+      "other_missing": 0,
+      "last_scan_at": "2026-09-30T02:16:00+00:00"
+    },
+    {
+      "instance_id": "i-0a1b2c3d4e5f6071a",
+      "name": "batch-01",
+      "critical_missing": 0,
+      "security_missing": 4,
+      "other_missing": 12,
+      "last_scan_at": "2026-09-29T23:40:00+00:00"
+    },
+    {
+      "instance_id": "i-0a1b2c3d4e5f6071b",
+      "name": "reporting-01",
+      "critical_missing": 0,
+      "security_missing": 0,
+      "other_missing": 0,
+      "last_scan_at": "2026-09-12T08:00:00+00:00"
+    },
+    {
+      "instance_id": "i-0a1b2c3d4e5f6071c",
+      "name": "bastion-01",
+      "critical_missing": 0,
+      "security_missing": 0,
+      "other_missing": 1,
+      "last_scan_at": "2026-09-30T01:00:00+00:00"
+    }
+  ]
+}
