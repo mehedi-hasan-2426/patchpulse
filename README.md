@@ -171,29 +171,78 @@ Build the Lambda deployment package with:
 The archive is written to `dist/lambda.zip`. Entries are sorted and timestamps are fixed, so
 unchanged source always produces the same file hash.
 
-## Infrastructure
+## Deploying to your AWS account
 
-```text
-infra/modules/lambda/  reusable module: function, role, log group, schedule
-infra/envs/dev/        dev environment using the module
+The `infra/envs/dev` environment runs PatchPulse in Lambda once a day. It creates one Lambda
+function, an execution role that can only write its own logs, a log group with 14-day
+retention, and an EventBridge schedule. These are billable AWS resources, so check current
+Lambda, CloudWatch Logs and S3 prices for your region before applying.
+
+The deployed function reads the fleet file bundled in the package. Replace
+`fixtures/fleet.json` with your own data before building, or the function reports on the
+synthetic fleet.
+
+Replace every value in angle brackets with your own.
+
+1. Install Terraform 1.10 or newer and the AWS CLI, and sign in to an account that may create
+   IAM roles, Lambda functions, EventBridge rules and CloudWatch log groups.
+2. Create an S3 bucket for Terraform state, `<your-state-bucket>`, in `<aws-region>`.
+3. Copy `infra/envs/dev/backend.hcl.example` to `infra/envs/dev/backend.hcl` and fill in the
+   bucket and region. Git ignores `backend.hcl`.
+4. Build the deployment package from the repository root:
+
+   ```sh
+   python -m tools.package_lambda
+   ```
+
+5. Plan and apply from `infra/envs/dev`:
+
+   ```sh
+   terraform init -backend-config=backend.hcl
+   terraform plan -var="aws_region=<aws-region>" -out=tfplan
+   terraform apply tfplan
+   ```
+
+6. Run it once and read the result:
+
+   ```sh
+   aws lambda invoke --function-name "$(terraform output -raw function_name)" response.json
+   ```
+
+   The response contains the report counts, every finding and the alert text. Logs go to the
+   group shown by `terraform output -raw log_group_name`.
+7. Remove everything when you are done:
+
+   ```sh
+   terraform destroy -var="aws_region=<aws-region>"
+   ```
+
+Policy limits for the deployed function are Terraform variables in
+`infra/envs/dev/variables.tf`: `max_critical_missing`, `max_security_missing`,
+`max_scan_age_days` and `schedule_expression`.
+
+## Reusing the Terraform module
+
+The Lambda module in `infra/modules/lambda` works without the rest of this repository. Build a
+package with `python -m tools.package_lambda`, then reference the module from your own
+configuration:
+
+```hcl
+module "patch_report" {
+  source = "github.com/mehedi-hasan-2426/patchpulse//infra/modules/lambda?ref=<tag-or-commit>"
+
+  name                = "<function-name>"
+  package_path        = "<path-to>/lambda.zip"
+  schedule_expression = "cron(0 6 * * ? *)"
+
+  environment_variables = {
+    PATCHPULSE_MAX_SCAN_AGE_DAYS = "7"
+  }
+}
 ```
 
-The [Lambda module](infra/modules/lambda/README.md) can be reused on its own. CI checks
-formatting and runs `terraform validate` on every pull request, without AWS credentials.
-Nothing has been applied to a real AWS account yet.
-
-To deploy the dev environment into your own account:
-
-1. Create an S3 bucket for Terraform state, then copy `infra/envs/dev/backend.hcl.example`
-   to `backend.hcl` and set the bucket name. `backend.hcl` is ignored by Git.
-2. Build the package: `python -m tools.package_lambda`.
-3. From `infra/envs/dev`, run `terraform init -backend-config=backend.hcl`, then
-   `terraform plan` and, after reviewing it, `terraform apply`.
-4. Invoke it once with `aws lambda invoke --function-name patchpulse-dev response.json`.
-5. Remove everything with `terraform destroy` when you are done.
-
-The dev stack is one Lambda function, a log group and a daily schedule. Check current prices
-for Lambda, CloudWatch Logs and S3 in your region before applying.
+Always pin `ref` to a tag or commit. The [module README](infra/modules/lambda/README.md) lists
+every input and output.
 
 ## License
 
