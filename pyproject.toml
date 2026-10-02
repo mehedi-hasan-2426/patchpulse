@@ -25,6 +25,9 @@ patchpulse = "patchpulse.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+patchpulse = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers --cov=patchpulse --cov-report=term-missing --cov-fail-under=95"
