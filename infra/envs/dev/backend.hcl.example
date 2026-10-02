@@ -1,5 +1,5 @@
-bucket       = "REPLACE-with-your-state-bucket"
+bucket       = "<your-state-bucket>"
 key          = "patchpulse/dev/terraform.tfstate"
-region       = "eu-central-1"
+region       = "<aws-region>"
 encrypt      = true
 use_lockfile = true
