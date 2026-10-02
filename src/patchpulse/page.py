@@ -45,15 +45,12 @@ def render_page(report: FleetReport) -> str:
         "<!DOCTYPE html>"
         '<html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        "<title>PatchPulse demo report</title>"
+        "<title>PatchPulse report</title>"
         f"<style>{STYLE}</style></head><body>"
-        "<h1>PatchPulse demo report</h1>"
-        f'<p class="meta">Synthetic fleet of {len(report.findings)} instances, '
-        f"evaluated as of {generated}. No real infrastructure is involved.</p>"
+        "<h1>PatchPulse report</h1>"
+        f'<p class="meta">{len(report.findings)} instances, evaluated as of {generated}.</p>'
         f'<div class="counts">{counts}</div>'
         "<table><thead><tr><th>Name</th><th>Instance</th><th>State</th><th>Reason</th></tr>"
         f"</thead><tbody>{rows}</tbody></table>"
-        '<p class="meta">Source: <a href="https://github.com/mehedi-hasan-2426/patchpulse">'
-        "github.com/mehedi-hasan-2426/patchpulse</a></p>"
         "</body></html>\n"
     )
