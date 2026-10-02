@@ -13,3 +13,4 @@ htmlcov/
 *.tfplan
 tfplan
 .terraform/
+dist/

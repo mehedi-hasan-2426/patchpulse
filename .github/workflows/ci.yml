@@ -35,6 +35,8 @@ jobs:
         run: mypy
       - name: Test
         run: pytest
+      - name: Package
+        run: python -m tools.package_lambda --output dist/lambda.zip
 
   secrets:
     name: secret scan
