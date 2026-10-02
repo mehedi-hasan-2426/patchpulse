@@ -14,3 +14,4 @@ htmlcov/
 tfplan
 .terraform/
 dist/
+infra/modules/**/.terraform.lock.hcl
