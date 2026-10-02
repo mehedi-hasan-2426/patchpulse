@@ -88,3 +88,26 @@ def test_cli_exits_with_two_on_bad_input(
 def test_cli_rejects_naive_as_of() -> None:
     with pytest.raises(SystemExit):
         main(["--as-of", "2026-10-01T12:00:00"])
+
+
+def test_cli_writes_html_page(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    page = tmp_path / "site" / "index.html"
+
+    exit_code = main(["--as-of", "2026-10-01T12:00:00+00:00", "--html", str(page)])
+
+    assert exit_code == 1
+    content = page.read_text(encoding="utf-8")
+    assert "Synthetic fleet of 5 instances" in content
+    assert "reporting-01" in content
+
+
+def test_cli_reports_unwritable_html_path(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    blocker = tmp_path / "file"
+    blocker.write_text("", encoding="utf-8")
+
+    assert main(["--html", str(blocker / "index.html")]) == 2
+    assert "patchpulse:" in capsys.readouterr().err
