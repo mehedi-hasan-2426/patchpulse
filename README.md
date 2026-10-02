@@ -5,10 +5,6 @@ Patch compliance reporting and alerting for a fleet of EC2 instances.
 This is a learning project. It is modelled on patching work I do in an enterprise DevOps
 team, but it uses synthetic data only and contains nothing from my employer.
 
-**Live demo:** [mehedi-hasan-2426.github.io/patchpulse](https://mehedi-hasan-2426.github.io/patchpulse/)
-shows the report for the synthetic fleet. It is rebuilt on every push to `main` and needs no
-AWS account.
-
 ## Status
 
 Milestone 1 of 6 is done: the Python core runs locally against a synthetic fleet. There is
@@ -59,8 +55,8 @@ PatchPulse: 3 of 5 instances need attention (2026-10-01T12:00:00+00:00)
 The command exits with `0` when everything is compliant, `1` when something needs attention,
 and `2` on invalid configuration or data.
 
-Add `--html site/index.html` to also write the report as a static page, which is how the live
-demo is built.
+Add `--html report.html` to also write the report as a standalone HTML file, for example to
+attach to a ticket or share with people who do not use the command line.
 
 ## Configuration
 
