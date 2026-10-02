@@ -17,7 +17,7 @@ no AWS infrastructure yet.
 | Milestone | Scope | State |
 |---|---|---|
 | 1 | Python core, demo source, unit tests, CI | Done |
-| 2 | Terraform modules and a dev environment | Planned |
+| 2 | Terraform modules and a dev environment | Done (validated, not applied) |
 | 3 | GitHub OIDC deploy to dev, CloudWatch alarms, SNS alerts | Planned |
 | 4 | Prod environment behind a manual approval | Planned |
 | 5 | Real SSM Patch Manager source and an incident walkthrough | Planned |
@@ -115,6 +115,30 @@ Build the Lambda deployment package with:
 
 The archive is written to `dist/lambda.zip`. Entries are sorted and timestamps are fixed, so
 unchanged source always produces the same file hash.
+
+## Infrastructure
+
+```text
+infra/modules/lambda/  reusable module: function, role, log group, schedule
+infra/envs/dev/        dev environment using the module
+```
+
+The [Lambda module](infra/modules/lambda/README.md) can be reused on its own. CI checks
+formatting and runs `terraform validate` on every pull request, without AWS credentials.
+Nothing has been applied to a real AWS account yet.
+
+To deploy the dev environment into your own account:
+
+1. Create an S3 bucket for Terraform state, then copy `infra/envs/dev/backend.hcl.example`
+   to `backend.hcl` and set the bucket name. `backend.hcl` is ignored by Git.
+2. Build the package: `python -m tools.package_lambda`.
+3. From `infra/envs/dev`, run `terraform init -backend-config=backend.hcl`, then
+   `terraform plan` and, after reviewing it, `terraform apply`.
+4. Invoke it once with `aws lambda invoke --function-name patchpulse-dev response.json`.
+5. Remove everything with `terraform destroy` when you are done.
+
+The dev stack is one Lambda function, a log group and a daily schedule. Check current prices
+for Lambda, CloudWatch Logs and S3 in your region before applying.
 
 ## License
 
