@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 from collections.abc import Sequence
@@ -23,6 +24,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="patchpulse")
     parser.add_argument("--as-of", type=parse_as_of, default=None)
     parser.add_argument("--html", type=Path, default=None)
+    parser.add_argument("--json", type=Path, default=None, help="write the fleet report as JSON")
     arguments = parser.parse_args(argv)
 
     try:
@@ -32,6 +34,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.html is not None:
             arguments.html.parent.mkdir(parents=True, exist_ok=True)
             arguments.html.write_text(render_page(report), encoding="utf-8")
+        if arguments.json is not None:
+            arguments.json.parent.mkdir(parents=True, exist_ok=True)
+            arguments.json.write_text(
+                json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8"
+            )
     except (SettingsError, FleetDataError, OSError) as error:
         print(f"patchpulse: {error}", file=sys.stderr)
         return 2
