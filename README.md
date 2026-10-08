@@ -79,6 +79,18 @@ age.
 Add `--html report.html` to also write the report as a standalone HTML file, for example to
 attach to a ticket.
 
+Use `--json dist/report.json` for structured output. You can write both formats in one run:
+
+```sh
+patchpulse --as-of 2026-10-01T12:00:00+00:00 --json dist/reports/fleet.json --html dist/reports/fleet.html
+```
+
+The JSON contains `generated_at`, `total`, `counts`, and `findings`. Each finding includes the
+instance ID, name, compliance status, and reasons. Missing parent folders are created and
+existing output files are overwritten. The console summary and exit codes stay the same:
+this synthetic fleet still exits with `1`, even when both files are written successfully.
+Files under `dist/` are ignored by Git.
+
 ## Using your own data
 
 PatchPulse reads a JSON file with one record per instance. Point it at your own file with
@@ -141,6 +153,7 @@ Command line options:
 |---|---|
 | `--as-of TIMESTAMP` | Evaluate at this time instead of now. Must include a time zone. |
 | `--html PATH` | Also write the report as an HTML file. Parent folders are created. |
+| `--json PATH` | Also write the report as a JSON file. Can be combined with `--html`. |
 
 Exit codes make the CLI easy to use in scripts and CI jobs:
 
