@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -111,3 +112,70 @@ def test_cli_reports_unwritable_html_path(
 
     assert main(["--html", str(blocker / "index.html")]) == 2
     assert "patchpulse:" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("with_html", [False, True])
+def test_cli_writes_json_report(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    with_html: bool,
+) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    report_path = tmp_path / "reports" / "fleet.json"
+    html_path = tmp_path / "site" / "index.html"
+    arguments = ["--as-of", "2026-10-01T12:00:00+00:00", "--json", str(report_path)]
+    if with_html:
+        arguments.extend(["--html", str(html_path)])
+
+    exit_code = main(arguments)
+
+    assert exit_code == 1
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["generated_at"] == "2026-10-01T12:00:00+00:00"
+    assert payload["total"] == 5
+    assert payload["counts"] == {"stale": 1, "non_compliant": 2, "compliant": 2}
+    assert len(payload["findings"]) == 5
+    assert payload["findings"][0]["name"] == "reporting-01"
+    assert payload["findings"][0]["status"] == "stale"
+    assert payload["findings"][0]["reasons"]
+    assert "3 of 5 instances need attention" in capsys.readouterr().out
+    if with_html:
+        assert "reporting-01" in html_path.read_text(encoding="utf-8")
+
+
+def test_cli_exports_a_compliant_fleet_as_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = tmp_path / "empty-fleet.json"
+    fixture.write_text('{"instances": []}', encoding="utf-8")
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(fixture))
+    report_path = tmp_path / "report.json"
+
+    assert main(["--json", str(report_path)]) == 0
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["total"] == 0
+    assert payload["findings"] == []
+    assert payload["counts"] == {"stale": 0, "non_compliant": 0, "compliant": 0}
+
+
+def test_cli_reports_unwritable_json_path(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    blocker = tmp_path / "file"
+    blocker.write_text("", encoding="utf-8")
+
+    assert main(["--json", str(blocker / "report.json")]) == 2
+    assert "patchpulse:" in capsys.readouterr().err
+
+
+def test_cli_does_not_export_json_with_invalid_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    monkeypatch.setenv("PATCHPULSE_MAX_SCAN_AGE_DAYS", "0")
+    report_path = tmp_path / "report.json"
+
+    assert main(["--json", str(report_path)]) == 2
+    assert not report_path.exists()
