@@ -20,6 +20,12 @@ def parse_as_of(value: str) -> datetime:
     return timestamp
 
 
+def _same_file(first: Path, second: Path) -> bool:
+    return first.resolve() == second.resolve() or (
+        first.exists() and second.exists() and first.samefile(second)
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="patchpulse")
     parser.add_argument("--as-of", type=parse_as_of, default=None)
@@ -29,6 +35,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         settings = load_settings(os.environ)
+        if any(
+            path is not None and _same_file(path, settings.fixture_path)
+            for path in (arguments.html, arguments.json)
+        ):
+            raise SettingsError("report output must not overwrite fleet input")
+        if (
+            arguments.html is not None
+            and arguments.json is not None
+            and _same_file(arguments.html, arguments.json)
+        ):
+            raise SettingsError("HTML and JSON outputs must be different files")
         now = arguments.as_of or datetime.now(UTC)
         report = run(FixtureSource(settings.fixture_path), settings, now)
         if arguments.html is not None:

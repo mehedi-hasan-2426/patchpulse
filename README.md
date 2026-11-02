@@ -91,6 +91,10 @@ existing output files are overwritten. The console summary and exit codes stay t
 this synthetic fleet still exits with `1`, even when both files are written successfully.
 Files under `dist/` are ignored by Git.
 
+Output files must differ from the input fleet file and from each other. Collisions,
+including relative-path aliases and existing links to the same file, exit with `2`
+before either report is written, preserving the original files.
+
 ## Using your own data
 
 PatchPulse reads a JSON file with one record per instance. Point it at your own file with

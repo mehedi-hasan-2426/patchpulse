@@ -179,3 +179,58 @@ def test_cli_does_not_export_json_with_invalid_settings(
 
     assert main(["--json", str(report_path)]) == 2
     assert not report_path.exists()
+
+
+@pytest.mark.parametrize("option", ["--html", "--json"])
+@pytest.mark.parametrize("alias", ["same", "relative", "hardlink"])
+def test_cli_preserves_fleet_input_when_used_as_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    option: str,
+    alias: str,
+) -> None:
+    fixture = tmp_path / "fleet.json"
+    original = FIXTURE.read_text(encoding="utf-8")
+    fixture.write_text(original, encoding="utf-8")
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(fixture))
+    output = fixture
+    if alias == "relative":
+        folder = tmp_path / "reports"
+        folder.mkdir()
+        output = folder / ".." / fixture.name
+    elif alias == "hardlink":
+        output = tmp_path / "alias.json"
+        output.hardlink_to(fixture)
+
+    assert main([option, str(output)]) == 2
+    assert fixture.read_text(encoding="utf-8") == original
+    captured = capsys.readouterr()
+    assert "report output must not overwrite fleet input" in captured.err
+    assert captured.out == ""
+
+
+@pytest.mark.parametrize("alias", ["same", "relative", "hardlink"])
+def test_cli_rejects_colliding_exports_before_writing(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    alias: str,
+) -> None:
+    monkeypatch.setenv("PATCHPULSE_FIXTURE_PATH", str(FIXTURE))
+    output = tmp_path / "report"
+    output.write_text("existing report", encoding="utf-8")
+    json_output = output
+    if alias == "relative":
+        folder = tmp_path / "reports"
+        folder.mkdir()
+        json_output = folder / ".." / output.name
+    elif alias == "hardlink":
+        json_output = tmp_path / "alias"
+        json_output.hardlink_to(output)
+
+    assert main(["--html", str(output), "--json", str(json_output)]) == 2
+    assert output.read_text(encoding="utf-8") == "existing report"
+    captured = capsys.readouterr()
+    assert "HTML and JSON outputs must be different files" in captured.err
+    assert captured.out == ""
