@@ -308,7 +308,12 @@ pytest
 
 Tests fail below 95 percent coverage. CI also scans the Git history for secrets with gitleaks
 and runs `terraform fmt` and `terraform validate` without AWS credentials. Actions are pinned
-to commit SHAs, and Dependabot proposes updates weekly.
+to commit SHAs. [Renovate](renovate.json) replaces Dependabot version updates once
+the [GitHub App](https://github.com/apps/renovate) is installed for this repository.
+Routine updates are grouped by manager before 06:00 Monday, Europe/Berlin, with a
+three-day release-age delay. Vulnerability PRs bypass that delay and schedule.
+All PRs need manual review and passing checks; major upgrades first require
+Dependency Dashboard approval. Keep Dependabot alerts and security scans enabled.
 
 `python -m tools.package_lambda` writes `dist/lambda.zip`. Entries are sorted and timestamps
 are fixed, so the same source always produces the same file hash and Terraform only updates
